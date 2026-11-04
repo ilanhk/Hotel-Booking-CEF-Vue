@@ -1,0 +1,182 @@
+openapi: 3.0.3
+info:
+  title: Vacation Management API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      x-handler: shared/handlers/health#health
+      responses:
+        "200":
+          description: API is running
+  /auth/register:
+    post:
+      x-handler: auth/handlers/auth#register
+      x-inputParser: shared/utils/request#parseJsonBody
+      responses:
+        "201":
+          description: Requester account created
+  /auth/login:
+    post:
+      x-handler: auth/handlers/auth#login
+      x-inputParser: shared/utils/request#parseJsonBody
+      responses:
+        "200":
+          description: Login successful
+  /auth/logout:
+    post:
+      x-handler: auth/handlers/auth#logout
+      responses:
+        "204":
+          description: Logged out
+  /auth/me:
+    get:
+      x-handler: auth/handlers/auth#me
+      responses:
+        "200":
+          description: Currently logged-in user
+  /my-hotels:
+    get:
+      x-handler: hotels/handlers/hotels#getMyManagedHotelsHandler
+      responses:
+        "200":
+          description: Hotels managed by the logged-in property manager
+  /hotels/cities:
+    get:
+      x-handler: hotels/handlers/hotel-search#listHotelCitiesHandler
+      responses:
+        "200":
+          description: Distinct cities that have hotels, sorted alphabetically
+  /hotels/search:
+    get:
+      x-handler: hotels/handlers/hotel-search#searchHotelsHandler
+      parameters:
+        - in: query
+          name: city
+          required: true
+          schema:
+            type: string
+          description: City to search in (case-insensitive, partial match)
+        - in: query
+          name: startDate
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Check-in date (YYYY-MM-DD)
+        - in: query
+          name: endDate
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Check-out date (YYYY-MM-DD)
+      responses:
+        "200":
+          description: Hotels in the city with at least one room free for the dates, each with its images
+  /hotels/:id/room-types:
+    get:
+      x-handler: hotels/handlers/hotel-search#getHotelRoomTypesHandler
+      parameters:
+        - in: query
+          name: startDate
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: The hotel's room types with images, nightly price and rooms still available for the dates
+  /bookings:
+    get:
+      x-handler: bookings/handlers/bookings#getBookingsHandler
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+          description: Page number (defaults to 1)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Results per page (defaults to 10)
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Pending, Approved, Rejected]
+          description: Optional booking status filter
+        - in: query
+          name: userId
+          schema:
+            type: string
+            format: uuid
+          description: Optional guest filter for property managers
+      responses:
+        "200":
+          description: Paginated bookings at the hotels the property manager manages
+    post:
+      x-handler: bookings/handlers/bookings#createBookingHandler
+      x-inputParser: shared/utils/request#parseJsonBody
+      responses:
+        "201":
+          description: Booking created
+  /my-bookings:
+    get:
+      x-handler: bookings/handlers/bookings#getMyBookingsHandler
+      responses:
+        "200":
+          description: The logged-in user's own bookings with hotel and room type (paginated)
+  /my-bookings/booked:
+    get:
+      x-handler: bookings/handlers/bookings#getMyBookedDaysHandler
+      responses:
+        "200":
+          description: The logged-in user's pending and approved bookings, unpaginated (for the calendar)
+  /bookings/:id:
+    get:
+      x-handler: bookings/handlers/bookings#getBookingByIdHandler
+      responses:
+        "200":
+          description: Booking found
+  /bookings/:id/approve:
+    post:
+      x-handler: bookings/handlers/bookings#approveBookingHandler
+      responses:
+        "200":
+          description: Booking approved
+  /bookings/:id/reject:
+    post:
+      x-handler: bookings/handlers/bookings#rejectBookingHandler
+      x-inputParser: shared/utils/request#parseJsonBody
+      responses:
+        "200":
+          description: Booking rejected
+  /users:
+    get:
+      x-handler: users/handlers/users#listRequesters
+      responses:
+        "200":
+          description: Requesters (id and name), validator only
+  /users/:id:
+    get:
+      x-handler: users/handlers/users#findUserById
+      responses:
+        "200":
+          description: User found
+    put:
+      x-handler: users/handlers/users#updateUser
+      x-inputParser: shared/utils/request#parseJsonBody
+      responses:
+        "200":
+          description: User updated
