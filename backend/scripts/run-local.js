@@ -33,6 +33,9 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
+// CEF resolves root.yaml and route handler references relative to argv[1].
+// The build copies root.yaml beside the bundled entry in dist/.
+process.argv[1] = entry;
 const { handler } = await import(pathToFileURL(entry).href);
 
 const server = createServer(async (request, response) => {
