@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://replace-with-render-service.onrender.com/:path*"
+      "destination": "https://hotel-booking-cef-vue.onrender.com/:path*"
     },
     {
       "source": "/(.*)",
