@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./migration-dist",
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": [
+    "src/data-source.ts",
+    "src/migrations/**/*.ts",
+    "src/scripts/run-migrations.ts"
+  ]
+}

@@ -341,11 +341,26 @@ async function seedDemoBookings(hotelName: string, rooms: Room[], guests: User[]
 }
 
 async function seedDemoUsers(): Promise<void> {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("Refusing to create demo users in production");
+  const isProduction = process.env.NODE_ENV === "production";
+  if (
+    isProduction &&
+    process.env.ALLOW_DEMO_SEED_IN_PRODUCTION !== "true"
+  ) {
+    throw new Error(
+      "Refusing to create demo users in production. Set ALLOW_DEMO_SEED_IN_PRODUCTION=true to explicitly allow it.",
+    );
   }
 
-  const password = process.env.SEED_DEMO_PASSWORD ?? "Vacation123!";
+  const password = process.env.SEED_DEMO_PASSWORD ?? (isProduction ? "" : "Vacation123!");
+  if (
+    isProduction &&
+    (!process.env.SEED_DEMO_PASSWORD ||
+      process.env.SEED_DEMO_PASSWORD === "Vacation123!")
+  ) {
+    throw new Error(
+      "Set a unique SEED_DEMO_PASSWORD before seeding production; the documented demo password is not allowed.",
+    );
+  }
   if (
     password.length < 8 ||
     password.length > 128 ||

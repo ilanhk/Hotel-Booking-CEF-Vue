@@ -46,24 +46,30 @@ Data model: a **Hotel** (city, managed by one Property Manager) has many **Room 
 
 ## Prerequisites
 
-- Node.js 20 or newer
+- Node.js 22.18 or newer, or 24.12 or newer (Node 24 recommended)
 - A PostgreSQL database (local install, Docker, or a hosted one such as Neon)
 
 ## Setup
 
 ### 1. Database
 
-Create an empty database, for example:
+Create an empty PostgreSQL database, for example:
 
 ```sql
 CREATE DATABASE vacations;
 ```
 
-No migration is needed: the tables and indexes are created automatically on first start (TypeORM `synchronize: true`, see Known limitations).
+Apply the schema with the checked-in TypeORM migrations before starting the API:
+
+```bash
+npm --prefix backend run migration:run
+```
+
+The application has `synchronize: false`; it never alters the production schema on startup. The initial migration is idempotent for a database whose schema was previously created by TypeORM synchronization.
 
 ### 2. Backend configuration
 
-Create `backend/.env` with:
+Copy `backend/.env.example` to `backend/.env` and set the values:
 
 | Variable | Meaning |
 |---|---|
@@ -72,6 +78,7 @@ Create `backend/.env` with:
 | `JWT_SECRET_ACCESS` | Secret used to sign JWTs. Use a long random string |
 | `ACCESS_TOKEN_NAME` | Name of the HttpOnly cookie that holds the JWT (e.g. `access_token`) |
 | `SEED_DEMO_PASSWORD` | Optional. Password for demo users (default `Vacation123!`) |
+| `ALLOW_DEMO_SEED_IN_PRODUCTION` | Must be `true` to explicitly allow the demo seeder against a production database |
 
 ### 3. Install dependencies
 
@@ -87,7 +94,7 @@ npm run install:all
 npm run seed
 ```
 
-This creates 5 guests, 13 property managers and 13 hotels (Tel Aviv, Jerusalem, Haifa, Eilat and Tiberias). Every hotel gets 3 images, 3 room types (Standard, Deluxe Suite, Suite) with 3 images each, at least one room of each type plus a random number of extra rooms, and 3-6 bookings with random guests and statuses. It is safe to run more than once: existing users and hotels are skipped, and hotels that already have bookings don't get more.
+This creates 5 guests, 13 property managers and 13 hotels (Tel Aviv, Jerusalem, Haifa, Eilat and Tiberias). Every hotel gets 3 images, 3 room types (Standard, Deluxe Suite, Suite) with 3 images each, at least one room of each type plus a random number of extra rooms, and 3-6 bookings with random guests and statuses. It is safe to run more than once: existing users and hotels are skipped, and hotels that already have bookings don't get more. The seeder refuses to run in production unless `ALLOW_DEMO_SEED_IN_PRODUCTION=true` and an explicit `SEED_DEMO_PASSWORD` are set. Never use the documented demo password on a public deployment.
 
 All demo accounts use the password `Vacation123!` (or `SEED_DEMO_PASSWORD`).
 
@@ -198,16 +205,25 @@ Paginated responses look like `{ data: [...], pagination: { page, limit, total, 
 - **Same-origin frontend.** In development Vite proxies `/api` to the backend, so the cookie is first-party and no CORS setup is needed.
 - **Frontend.** Role-based router guards, Pinia auth store, reusable components (image gallery, booking calendar, bookings list), a `usePaginatedList` composable that cancels stale requests, loading states on login, register and booking, and a 401 on an expired session returns the user to the login page.
 
+## Production preparation
+
+- **Migrations:** run `npm --prefix backend run migration:run` as a release step before starting the backend. Do not enable TypeORM synchronization in production.
+- **Same-origin routing:** `frontend/vercel.json` includes a Vercel rewrite for `/api/*` to the backend (with the `/api` prefix removed) plus SPA history fallback. Set the Vercel project root to `frontend` (build command `npm run build`, output `dist`). On Render, set the backend service root to `backend`, build command to `npm ci --include=dev && npm run build`, start command to `npm start`, and release command to `npm run migration:run`. The backend reads Render's `PORT` and binds to `0.0.0.0` in production; do not hardcode a port. Replace the Vercel rewrite's example Render hostname with the actual backend URL. Vite's proxy is development-only. Forwarded client-IP headers must be overwritten by the trusted proxy for login rate limiting to work as intended.
+- **Secrets and HTTPS:** set `NODE_ENV=production`, `PORT`, `DATABASE_URL` (with TLS enabled), `JWT_SECRET_ACCESS` (at least 32 random characters), and `ACCESS_TOKEN_NAME` in the host's secret manager. The auth cookie receives the `Secure` attribute only in production.
+- **Demo data:** seed only if public demo accounts are acceptable; production seeding requires both an explicit opt-in and a strong `SEED_DEMO_PASSWORD`.
+- **Operations:** configure managed PostgreSQL backups and retention, verify the `/health` endpoint and logs, and run integration tests against a separate test database before release.
+
+The frontend build and backend build/typecheck are CI-checked. Deployment itself and end-to-end checks against the selected hosting provider still need to be done for each environment.
+
 ## Known limitations
 
-- **`synchronize: true`** creates and alters tables automatically. Fine for this assignment, but a real deployment should use TypeORM migrations.
+- **Login rate limits:** failed logins are limited in PostgreSQL to 5 attempts per email/address and 30 per address per 15 minutes. Keep the API behind a trusted proxy that overwrites `X-Real-IP` or `X-Forwarded-For`; add provider-level edge protection for high-volume/public use.
 - **In-memory event bus.** Events are published in-process and are lost on restart. A production version would use a broker (and an outbox).
-- **Production serving.** Only the development setup (Vite proxy) is configured. A deployment needs the frontend served on the same origin as the API (for example a host rewrite of `/api/*`), and `NODE_ENV=production` so the cookie gets the `Secure` flag.
 - **No refresh tokens.** The access token is short-lived, so users log in again after it expires.
 - **Hotel images are external URLs.** Images are stored as URLs (Unsplash in the seed); there is no upload flow.
 - **No hotel, room or price management screens.** Property Managers review bookings but hotels, rooms and prices are created by the seed script.
 - **No guest cancellation.** A Guest can't cancel a booking once it is made.
 - **Registration** is open and always creates Guests. There is no admin screen to create Property Managers.
-- **No rate limiting or account lockout** on login.
+- **Registration has no rate limit or email verification.** Login attempts are rate limited; consider edge protection and email verification before a public launch.
 - **Offset pagination** gets slower on very deep pages; keyset (cursor) pagination would scale better.
 - **Dates are date-only** (no time zones or check-in times).

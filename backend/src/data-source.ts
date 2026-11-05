@@ -8,6 +8,8 @@ import { RoomType } from "./room-management/room-type/room-type.entity.js";
 import { RoomTypeImage } from "./room-management/room-type-images/room-type-images.entity.js";
 import { User } from "./users/user.entity.js";
 import { Booking } from "./bookings/booking.entity.js";
+import { LoginAttempt } from "./auth/login-attempt.entity.js";
+import { InitialSchema1762363200000 } from "./migrations/1762363200000-InitialSchema.js";
 
 config();
 
@@ -17,12 +19,15 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL is not set");
 }
 
+const sslMode = new URL(databaseUrl).searchParams.get("sslmode");
+
 export const AppDataSource = new DataSource({
   type: "postgres",
   url: databaseUrl,
-  ssl: databaseUrl.includes("sslmode=require") ? { rejectUnauthorized: false } : false,
-  entities: [User, Booking, Hotel, HotelImage, Room, RoomType, RoomTypeImage],
-  synchronize: true, //acceptable for this assignment/development, but not recommended for production (can  accidentaly remove/rewrite the database schema)
+  ssl: sslMode && sslMode.toLowerCase() !== "disable" ? true : false,
+  entities: [User, Booking, Hotel, HotelImage, Room, RoomType, RoomTypeImage, LoginAttempt],
+  migrations: [InitialSchema1762363200000],
+  synchronize: false,
   logging: false,
 });
 

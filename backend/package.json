@@ -10,6 +10,8 @@
     "build": "cef-build && node scripts/set-cef-bundle-type.js",
     "typecheck": "npm run codegen && tsc --noEmit --module ESNext --moduleResolution Bundler",
     "seed:demo": "tsc --project tsconfig.seed.json && node seed-dist/seed.js",
+    "migration:check": "tsc --project tsconfig.migrations.json --noEmit",
+    "migration:run": "tsc --project tsconfig.migrations.json && node migration-dist/scripts/run-migrations.js",
     "start": "node scripts/run-local.js",
     "test": "vitest run",
     "test:watch": "vitest",

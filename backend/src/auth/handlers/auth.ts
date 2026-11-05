@@ -9,6 +9,10 @@ import {
   createAccessTokenResponse,
 } from "../../shared/utils/authentication.js";
 import { isRecord } from "../../shared/utils/request.js";
+import {
+  clearLoginAttempts,
+  getLoginRetryAfter,
+} from "../utils/login-rate-limit.js";
 import type { HandlerFn } from "../../shared/types.js";
 
 export const register: HandlerFn = async (input) => {
@@ -45,7 +49,7 @@ export const register: HandlerFn = async (input) => {
   }
 };
 
-export const login: HandlerFn = async (input) => {
+export const login: HandlerFn = async (input, event) => {
   if (
     !isRecord(input) ||
     typeof input.email !== "string" ||
@@ -59,18 +63,27 @@ export const login: HandlerFn = async (input) => {
   // If not a bad request error will be sent
 
   try {
+    const email = input.email.trim().toLowerCase();
+    const retryAfter = await getLoginRetryAfter(event, email);
+    if (retryAfter !== null) {
+      return new Response(
+        429,
+        { message: "Too many login attempts. Try again later." },
+        { "Retry-After": String(retryAfter) },
+      );
+    }
+
     const user = await AppDataSource.getRepository(User)
       .createQueryBuilder("user")
       .addSelect("user.password")
-      .where("user.email = :email", {
-        email: input.email.trim().toLowerCase(),
-      })
+      .where("user.email = :email", { email })
       .getOne();
       //finds the user with the given email
 
     if (!user || !(await verifyPassword(input.password, user.password))) {
       return new Response(401, { message: "Invalid email or password" });
     }
+    await clearLoginAttempts(event, email);
     //if the user doesnt exist or the password is incorrect it returns an unauthorized error
     return createAccessTokenResponse(
       200,
