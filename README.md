@@ -2,6 +2,8 @@
 
 A web application for searching and booking hotel rooms.
 
+**Live demo:** https://hotel-booking-cef-vue.vercel.app/ (backend on Render's free plan, so the first request after idle can take ~50 seconds). Demo accounts are listed under [Seed demo data](#4-seed-demo-data) (`guest1@example.com`, `pm1@example.com`, …).
+
 - **Guests** search hotels by city, browse hotel and room-type galleries, pick dates on a booking calendar, book a room and follow their bookings.
 - **Property Managers** manage the hotels assigned to them: they see the bookings made at their hotels, filter them by status or guest, then approve or reject each one (a comment is required when rejecting).
 
